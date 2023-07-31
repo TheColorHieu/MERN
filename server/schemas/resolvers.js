@@ -4,6 +4,7 @@ const {AuthenticationError} = require('apollo-server-express');
 const {signToken} = require('../utils/auth');
 
 const resolvers = {
+    //query to get all users
     Query: {
         //get a single user by username
         me: async (parent, args, context) => {
