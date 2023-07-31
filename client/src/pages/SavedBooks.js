@@ -6,70 +6,47 @@ import {
   Row,
   Col
 } from 'react-bootstrap';
-
+//importing the useMutation() hook from the @apollo/client package
+import {useQuery, useMutation} from '@apollo/client';
 import { getMe, deleteBook } from '../utils/API';
 import Auth from '../utils/auth';
 import { removeBookId } from '../utils/localStorage';
 
+//here we are creating the SavedBooks component
 const SavedBooks = () => {
-  const [userData, setUserData] = useState({});
-
-  // use this to determine if `useEffect()` hook needs to run again
-  const userDataLength = Object.keys(userData).length;
-
-  useEffect(() => {
-    const getUserData = async () => {
-      try {
-        const token = Auth.loggedIn() ? Auth.getToken() : null;
-
-        if (!token) {
-          return false;
-        }
-
-        const response = await getMe(token);
-
-        if (!response.ok) {
-          throw new Error('something went wrong!');
-        }
-
-        const user = await response.json();
-        setUserData(user);
-      } catch (err) {
-        console.error(err);
-      }
-    };
-
-    getUserData();
-  }, [userDataLength]);
-
-  // create function that accepts the book's mongo _id value as param and deletes the book from the database
-  const handleDeleteBook = async (bookId) => {
-    const token = Auth.loggedIn() ? Auth.getToken() : null;
-
-    if (!token) {
-      return false;
-    }
-
-    try {
-      const response = await deleteBook(bookId, token);
-
-      if (!response.ok) {
-        throw new Error('something went wrong!');
-      }
-
-      const updatedUser = await response.json();
-      setUserData(updatedUser);
-      // upon success, remove book's id from localStorage
-      removeBookId(bookId);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // if data isn't here yet, say so
-  if (!userDataLength) {
-    return <h2>LOADING...</h2>;
+  const { loading, data } = useQuery(GET_ME);
+  const userData = data?.me || {};
+  const [deleteBook, { error }] = useMutation(DELETE_BOOK);
+  if(!Auth.loggedIn()){
+    return (
+    <h2>You must be logged in to view this page.
+      <a href='/login'>Login</a> or <a href='/signup'>Signup</a>
+    </h2>
+  );
+}
+//here we are creating the handleDeleteBook function
+const handleDeleteBook = async (bookId) => {
+  const token = Auth.loggedIn() ? Auth.getToken() : null;
+  if (!token) {
+    return false;
   }
+  try {
+    await deleteBook({
+      variables: { bookId: bookId },
+      update(cache, { data: { deleteBook } }) {
+        cache.evict({ id: cache.identify(deleteBook) });
+      }
+    });
+    removeBookId(bookId);
+  } catch (err) {
+    console.error(err);
+  }
+};
+//if the query is loading, we display the text 'LOADING...'
+if (loading) {
+  return <h2>LOADING...</h2>;
+}
+//here we are returning the JSX to render the SavedBooks component
 
   return (
     <>
